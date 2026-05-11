@@ -1,0 +1,1879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>QI Spine — Clinical Roster Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root {
+  /* QI Spine palette — clinical teal + warm accent */
+  --qs-navy: #0c2a4d;
+  --qs-teal: #0d6e7a;
+  --qs-teal-light: #2ba0ad;
+  --qs-mint: #e0f3f4;
+  --qs-coral: #ee6c4d;
+  --qs-coral-light: #ff8b6e;
+  --qs-gold: #f4a261;
+  --qs-cream: #fdf8f3;
+  --bg: #f4f7f9;
+  --cd: #ffffff;
+  --tx: #1a2940;
+  --mu: #5a6b85;
+  --bd: #d9e1eb;
+  --shadow: 0 2px 8px rgba(12,42,77,.06);
+  --shadow-lg: 0 8px 24px rgba(12,42,77,.10);
+  --p1: #d4edda; --p2: #cfe2ff; --p3: #fff3cd; --tdf: #e9ecef;
+  --sun: #fde4e1; --prop: #fff3cd; --noncl: #f0f0f0;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--bg); color: var(--tx); line-height: 1.6; font-size: 14px;
+  min-height: 100vh;
+}
+header {
+  background: linear-gradient(135deg, var(--qs-navy) 0%, var(--qs-teal) 100%);
+  color: #fff; padding: 22px 36px; box-shadow: var(--shadow-lg);
+  display: flex; align-items: center; gap: 18px;
+}
+.logo {
+  width: 56px; height: 56px;
+  background: rgba(255,255,255,.12); border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid rgba(255,255,255,.2);
+}
+.logo svg { width: 36px; height: 36px; }
+header .titles { flex: 1; }
+header h1 { font-size: 22px; font-weight: 800; letter-spacing: -.3px; }
+header .tag { font-size: 11px; font-weight: 600; color: var(--qs-coral-light); text-transform: uppercase; letter-spacing: 1.5px; margin-top: 2px; }
+header p { opacity: .85; font-size: 12.5px; margin-top: 4px; max-width: 800px; }
+.header-meta { text-align: right; font-size: 11.5px; opacity: .8; }
+.header-meta strong { display: block; font-size: 13px; opacity: 1; font-weight: 600; margin-bottom: 2px; }
+
+nav {
+  background: var(--cd); border-bottom: 1px solid var(--bd);
+  padding: 0 36px; display: flex; gap: 2px; overflow-x: auto;
+  box-shadow: var(--shadow);
+}
+nav button {
+  background: none; border: none; padding: 16px 22px;
+  font-size: 13.5px; font-weight: 600; color: var(--mu);
+  cursor: pointer; border-bottom: 3px solid transparent;
+  transition: all .18s; white-space: nowrap;
+  font-family: inherit;
+  display: flex; align-items: center; gap: 8px;
+}
+nav button:hover { color: var(--qs-teal); background: var(--qs-mint); }
+nav button.active { color: var(--qs-teal); border-bottom-color: var(--qs-coral); }
+nav button .num {
+  width: 22px; height: 22px; background: var(--bd); color: var(--mu);
+  border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700;
+}
+nav button.active .num { background: var(--qs-teal); color: #fff; }
+
+main { max-width: 1320px; margin: 28px auto; padding: 0 36px; }
+.section { display: none; }
+.section.active { display: block; animation: fadein .25s ease; }
+@keyframes fadein { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+.card {
+  background: var(--cd); border-radius: 14px;
+  padding: 24px 28px; box-shadow: var(--shadow); margin-bottom: 20px;
+  border: 1px solid var(--bd);
+}
+.card-head {
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--bd);
+}
+.card-head .icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: var(--qs-mint); color: var(--qs-teal);
+  display: flex; align-items: center; justify-content: center;
+}
+.card h2 { font-size: 16px; color: var(--qs-navy); font-weight: 700; letter-spacing: -.2px; }
+.card h2 .sub { font-size: 12.5px; color: var(--mu); font-weight: 500; display: block; margin-top: 2px; }
+.card h3 { font-size: 14px; color: var(--qs-navy); margin: 14px 0 8px; font-weight: 700; }
+
+.upload-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 16px; }
+.upload-card {
+  background: var(--cd); border: 2px dashed var(--bd); border-radius: 12px;
+  padding: 18px; transition: all .2s; position: relative;
+}
+.upload-card.loaded {
+  border-color: var(--qs-teal); border-style: solid;
+  background: var(--qs-mint);
+}
+.upload-card .step-num {
+  position: absolute; top: -10px; left: 16px;
+  background: var(--qs-coral); color: #fff;
+  width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; box-shadow: var(--shadow);
+}
+.upload-card.loaded .step-num { background: var(--qs-teal); }
+.upload-card h3 { color: var(--qs-navy); margin: 0 0 4px 0; font-size: 14px; font-weight: 700; }
+.upload-card .sub { color: var(--mu); font-size: 12px; margin-bottom: 12px; line-height: 1.5; }
+.upload-card input[type="file"] {
+  display: block; width: 100%; padding: 8px;
+  background: var(--cd); border: 1px solid var(--bd);
+  border-radius: 6px; font-size: 12px; font-family: inherit;
+}
+.upload-card .status { margin-top: 10px; font-size: 12px; color: var(--qs-teal); font-weight: 600; }
+.upload-card .status.err { color: var(--qs-coral); }
+.upload-card.loaded .status::before { content: '✓ '; }
+.upload-card .stats {
+  margin-top: 8px; font-size: 11.5px; color: var(--qs-navy);
+  background: var(--cd); padding: 8px 10px; border-radius: 6px;
+  border: 1px solid var(--bd);
+}
+
+button.primary {
+  background: var(--qs-teal); color: #fff; border: none;
+  padding: 11px 22px; border-radius: 8px;
+  font-weight: 600; cursor: pointer; font-size: 13.5px;
+  font-family: inherit; transition: all .18s;
+}
+button.primary:hover { background: var(--qs-navy); transform: translateY(-1px); box-shadow: var(--shadow); }
+button.primary:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+button.acc {
+  background: var(--qs-coral); color: #fff; border: none;
+  padding: 11px 22px; border-radius: 8px;
+  font-weight: 600; cursor: pointer; font-size: 13.5px;
+  font-family: inherit; transition: all .18s;
+}
+button.acc:hover { background: var(--qs-coral-light); }
+button.ghost {
+  background: var(--cd); color: var(--qs-teal); border: 1px solid var(--qs-teal);
+  padding: 10px 18px; border-radius: 8px; font-weight: 600; cursor: pointer;
+  font-size: 13px; font-family: inherit;
+}
+button.ghost:hover { background: var(--qs-mint); }
+
+.form-row {
+  display: grid; grid-template-columns: 180px 1fr;
+  gap: 14px; margin-bottom: 12px; align-items: center;
+}
+.form-row label {
+  font-weight: 600; color: var(--qs-navy);
+  font-size: 13px;
+}
+.form-row input, .form-row select, .form-row textarea {
+  padding: 9px 12px; border: 1px solid var(--bd); border-radius: 7px;
+  font-size: 13px; font-family: inherit; background: var(--cd);
+  transition: border-color .15s;
+}
+.form-row input:focus, .form-row select:focus, .form-row textarea:focus {
+  outline: none; border-color: var(--qs-teal); box-shadow: 0 0 0 3px rgba(13,110,122,.1);
+}
+.form-row textarea { min-height: 70px; resize: vertical; }
+
+.alert { padding: 12px 16px; border-radius: 10px; margin: 10px 0; font-size: 13px; border-left: 4px solid; }
+.alert.success { background: #e8f5e8; color: #1e6b3b; border-color: #2d8a47; }
+.alert.warn { background: #fff8e8; color: #856700; border-color: var(--qs-gold); }
+.alert.err { background: #fce8e3; color: #8a2517; border-color: var(--qs-coral); }
+.alert.info { background: var(--qs-mint); color: var(--qs-navy); border-color: var(--qs-teal); }
+
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 10px; }
+th { background: var(--qs-navy); color: #fff; padding: 10px 12px; text-align: left; text-transform: uppercase; font-size: 10.5px; letter-spacing: .5px; }
+td { padding: 8px 12px; border-bottom: 1px solid var(--bd); }
+tr:hover td { background: var(--qs-mint); }
+
+.badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 10.5px; font-weight: 700; }
+.b-p1 { background: var(--p1); color: #1e6b3b; }
+.b-p2 { background: var(--p2); color: #1a4a73; }
+.b-p3 { background: var(--p3); color: #8a6c00; }
+.b-td { background: var(--tdf); color: var(--mu); }
+.b-ok { background: var(--p1); color: #1e6b3b; }
+.b-warn { background: var(--p3); color: #8a6c00; }
+.b-no { background: var(--sun); color: #8a1f17; }
+
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; }
+.kpi {
+  background: var(--cd); border: 1px solid var(--bd);
+  padding: 18px; border-radius: 10px; text-align: center;
+  position: relative; overflow: hidden;
+}
+.kpi::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0;
+  height: 3px; background: var(--qs-teal);
+}
+.kpi .label { font-size: 11px; color: var(--mu); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 6px; font-weight: 600; }
+.kpi .value { font-size: 26px; font-weight: 800; color: var(--qs-navy); letter-spacing: -.5px; }
+.kpi .sub { font-size: 11px; color: var(--mu); margin-top: 4px; }
+
+.scroll-container { max-height: 500px; overflow: auto; border: 1px solid var(--bd); border-radius: 8px; }
+
+/* LIVE IMPACT PANEL */
+.live-impact {
+  background: linear-gradient(135deg, var(--qs-mint) 0%, #ffffff 100%);
+  border: 1px solid var(--qs-teal);
+  border-radius: 12px; padding: 20px 24px; margin: 16px 0;
+  box-shadow: var(--shadow);
+  position: relative;
+}
+.live-impact::before {
+  content: '⚡ LIVE IMPACT';
+  position: absolute; top: -10px; left: 18px;
+  background: var(--qs-teal); color: #fff;
+  padding: 3px 12px; border-radius: 4px;
+  font-size: 10px; font-weight: 700; letter-spacing: 1.2px;
+}
+.live-impact h3 {
+  color: var(--qs-navy); font-size: 15px; font-weight: 700;
+  margin-bottom: 12px; padding-top: 6px;
+}
+.live-impact .doctor-line {
+  font-size: 13px; color: var(--qs-navy); margin-bottom: 10px;
+  padding: 8px 12px; background: var(--cd); border-radius: 6px;
+}
+.live-impact ul { list-style: none; padding: 0; }
+.live-impact ul li {
+  padding: 8px 12px; margin: 6px 0;
+  background: var(--cd); border-radius: 6px;
+  font-size: 12.5px; display: flex; align-items: flex-start; gap: 10px;
+  border-left: 3px solid var(--bd);
+}
+.live-impact ul li.ok { border-left-color: #2d8a47; }
+.live-impact ul li.warn { border-left-color: var(--qs-gold); }
+.live-impact ul li.err { border-left-color: var(--qs-coral); }
+.live-impact ul li.info { border-left-color: var(--qs-teal); }
+.live-impact ul li .ic { font-size: 14px; flex-shrink: 0; line-height: 1.4; }
+.live-impact .mini-kpis {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 8px; margin: 12px 0;
+}
+.live-impact .mini-kpi {
+  background: var(--cd); padding: 10px; border-radius: 6px; text-align: center;
+}
+.live-impact .mini-kpi .v { font-size: 18px; font-weight: 700; color: var(--qs-navy); }
+.live-impact .mini-kpi .l { font-size: 10px; color: var(--mu); text-transform: uppercase; letter-spacing: .5px; }
+.live-impact .verdict {
+  margin: 12px 0; padding: 10px 14px;
+  border-radius: 7px; font-weight: 700; font-size: 13px;
+  display: flex; align-items: center; gap: 8px;
+}
+.live-impact .verdict.ok { background: #d4edda; color: #1e6b3b; }
+.live-impact .verdict.warn { background: #fff8e8; color: #856700; }
+.live-impact .verdict.err { background: #fce8e3; color: #8a2517; }
+.live-impact.empty { background: var(--bg); border-style: dashed; color: var(--mu); }
+.live-impact.empty::before { background: var(--mu); }
+.live-impact.empty .placeholder { color: var(--mu); font-size: 13px; padding: 8px 0; }
+
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; margin-right: 4px; }
+.tag-applied { background: var(--p1); color: #1e6b3b; }
+.tag-proposal { background: var(--prop); color: #856700; }
+.tag-reject { background: var(--sun); color: #8a2517; }
+.hint { font-size: 12px; color: var(--mu); font-style: italic; margin-top: 4px; }
+
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+.holiday-picker {
+  background: var(--cd); border: 1px solid var(--bd); border-radius: 8px; padding: 12px;
+}
+.holiday-list {
+  max-height: 220px; overflow-y: auto; padding: 4px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px;
+}
+.holiday-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; border-radius: 6px; cursor: pointer;
+  transition: background .15s; font-size: 12.5px;
+}
+.holiday-item:hover { background: var(--qs-mint); }
+.holiday-item input[type=checkbox] { cursor: pointer; }
+.holiday-item .h-date { color: var(--qs-teal); font-weight: 600; min-width: 90px; }
+.holiday-item .h-name { color: var(--tx); }
+.holiday-selected {
+  margin-top: 10px; padding: 8px 10px;
+  background: var(--qs-mint); border-radius: 6px; font-size: 11.5px; color: var(--qs-navy);
+  min-height: 30px;
+}
+.holiday-selected .pill {
+  display: inline-block; background: var(--qs-teal); color: #fff;
+  padding: 2px 10px; border-radius: 10px; font-size: 11px; margin: 2px 4px 2px 0;
+}
+.clinic-filter-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;
+}
+
+@media (max-width: 900px) {
+  .upload-grid, .split { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+  header { flex-direction: column; align-items: flex-start; }
+  .header-meta { text-align: left; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <!-- Stylized spine SVG -->
+    <svg viewBox="0 0 64 64" fill="none">
+      <ellipse cx="32" cy="10" rx="9" ry="7" fill="#ee6c4d"/>
+      <ellipse cx="32" cy="22" rx="8" ry="5" fill="#ffffff"/>
+      <ellipse cx="32" cy="32" rx="9" ry="5" fill="#ffffff"/>
+      <ellipse cx="32" cy="42" rx="10" ry="5" fill="#ffffff"/>
+      <ellipse cx="32" cy="52" rx="11" ry="6" fill="#2ba0ad"/>
+    </svg>
+  </div>
+  <div class="titles">
+    <div class="tag">QI Spine</div>
+    <h1>Clinical Roster Manager</h1>
+    <p>Upload monthly inputs · Generate clinical roster automatically · Approve shift changes & leave requests with live capacity, peak-hour and patient-impact checks. All processing happens locally on your computer.</p>
+  </div>
+  <div class="header-meta">
+    <strong id="meta-date"></strong>
+    <span>v2.0 · Local Edition</span>
+  </div>
+</header>
+
+<nav>
+  <button data-tab="upload" class="active"><span class="num">1</span> Upload Files</button>
+  <button data-tab="generate"><span class="num">2</span> Generate Roster</button>
+  <button data-tab="roster"><span class="num">3</span> View Roster</button>
+  <button data-tab="shift"><span class="num">4</span> Shift Change</button>
+  <button data-tab="leave"><span class="num">5</span> Leave Approval</button>
+  <button data-tab="impact"><span class="num">6</span> Patient Impact</button>
+</nav>
+
+<main>
+
+<!-- TAB 1: UPLOAD -->
+<section class="section active" id="upload">
+  <div class="card">
+    <div class="card-head">
+      <div class="icon">📤</div>
+      <div>
+        <h2>Upload Required Files
+          <span class="sub">All four files are needed before the tool can generate a roster. Drop them in any order.</span>
+        </h2>
+      </div>
+    </div>
+
+    <div class="upload-grid">
+      <div class="upload-card" id="card-cmf">
+        <div class="step-num">1</div>
+        <h3>📋 Active IPs (CMF)</h3>
+        <div class="sub">Latest patient master with treating-doctor + visits-left columns.<br><b>Format:</b> .xlsb or .xlsx</div>
+        <input type="file" id="file-cmf" accept=".xlsb,.xlsx,.xls">
+        <div class="status" id="status-cmf">Not loaded</div>
+        <div class="stats" id="stats-cmf" style="display:none"></div>
+      </div>
+
+      <div class="upload-card" id="card-roster">
+        <div class="step-num">2</div>
+        <h3>📅 Manual Roster (any prior month)</h3>
+        <div class="sub">Approved manual roster — one or more sheets, named anything (sheet name is just a label). The tool reads the actual date columns to detect months.<br><b>Going forward you only need the most recent month.</b><br><b>Format:</b> .xlsx</div>
+        <input type="file" id="file-roster" accept=".xlsx,.xls">
+        <div class="status" id="status-roster">Not loaded</div>
+        <div class="stats" id="stats-roster" style="display:none"></div>
+      </div>
+
+      <div class="upload-card" id="card-capacity">
+        <div class="step-num">3</div>
+        <h3>👥 Capacity Details</h3>
+        <div class="sub">Doctor priority (P1-P4), role (CD/TD/ED), and clinic timings.<br><b>Format:</b> .xlsx</div>
+        <input type="file" id="file-capacity" accept=".xlsx,.xls">
+        <div class="status" id="status-capacity">Not loaded</div>
+        <div class="stats" id="stats-capacity" style="display:none"></div>
+      </div>
+
+      <div class="upload-card" id="card-appts">
+        <div class="step-num">4</div>
+        <h3>🗓️ Appointments</h3>
+        <div class="sub">Past completed + future scheduled appointments dump.<br><b>Format:</b> .xlsx</div>
+        <input type="file" id="file-appts" accept=".xlsx,.xls">
+        <div class="status" id="status-appts">Not loaded</div>
+        <div class="stats" id="stats-appts" style="display:none"></div>
+      </div>
+    </div>
+
+    <div class="alert info" id="upload-summary">
+      <strong>Progress:</strong> <span id="upload-count">0</span> of 4 files loaded. <span id="upload-next"></span>
+    </div>
+
+    <button class="primary" id="btn-process-uploads" disabled>Process Files & Continue →</button>
+  </div>
+</section>
+
+<!-- TAB 2: GENERATE -->
+<section class="section" id="generate">
+  <div class="card">
+    <div class="card-head">
+      <div class="icon">⚙️</div>
+      <div>
+        <h2>Generate Monthly Roster
+          <span class="sub">Apply Sunday rotation, comp-offs, peak coverage and continuity rules to the target month.</span>
+        </h2>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label for="target-month">Target Month</label>
+      <select id="target-month">
+        <option value="">— select target month —</option>
+      </select>
+    </div>
+    <div id="month-info" class="hint" style="margin-left: 192px; margin-bottom: 12px;"></div>
+
+    <div class="form-row">
+      <label>Public Holidays (Sunday-logic)</label>
+      <div>
+        <div class="holiday-picker" id="holiday-picker">
+          <div class="holiday-list" id="holiday-list">
+            <div class="hint">Select a target month first — relevant holidays will appear here.</div>
+          </div>
+          <div style="margin-top: 10px;">
+            <input type="text" id="holidays-custom" placeholder="Custom dates (YYYY-MM-DD, comma-separated)" style="width:100%;">
+          </div>
+          <div id="holiday-selected" class="holiday-selected"></div>
+        </div>
+        <div class="hint">Selected holidays trigger Sunday-logic for Maharashtra clinics. Tick the official ones + type any custom date.</div>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label>Continuity</label>
+      <div>
+        <select id="continuity">
+          <option value="none">No prior-month continuity</option>
+          <option value="balance" selected>Balance against approved prior month</option>
+        </select>
+        <div class="hint">When generating June with May continuity ON: doctors with fewer May Sundays get priority for June duty + no May 31 → June 7 back-to-back.</div>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <label>Peak Coverage</label>
+      <div>
+        <select id="peak-strategy">
+          <option value="proposal" selected>Generate proposals only (do not modify roster)</option>
+          <option value="apply">Auto-apply shift extensions</option>
+          <option value="off">Don't fix peak gaps</option>
+        </select>
+        <div class="hint">"Proposals only" flags peak-coverage shifts in Deviations as recommendations for ops review without changing the roster.</div>
+      </div>
+    </div>
+
+    <button class="primary" id="btn-generate" disabled>Generate Roster</button>
+    <div id="gen-status"></div>
+  </div>
+</section>
+
+<!-- TAB 3: VIEW ROSTER -->
+<section class="section" id="roster">
+  <div class="card">
+    <div class="card-head">
+      <div class="icon">📊</div>
+      <div>
+        <h2>Generated Roster Summary
+          <span class="sub">Snapshot of doctors, deviations, comp-offs and peak proposals applied this month.</span>
+        </h2>
+      </div>
+    </div>
+    <div id="roster-summary"></div>
+    <div style="margin-top:16px; display: flex; gap: 10px;">
+      <button class="acc" id="btn-export-roster" disabled>📥 Download Excel</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="icon">🔍</div>
+      <div>
+        <h2>Deviations vs Manual
+          <span class="sub">Every change vs. the manual roster + peak-coverage proposals (yellow).</span>
+        </h2>
+      </div>
+    </div>
+    <div class="form-row" style="grid-template-columns: 120px 1fr 1fr; margin-bottom: 14px;">
+      <label>Filter</label>
+      <select id="dev-type-filter"><option value="">All types</option><option value="Applied">Applied only</option><option value="Proposal">Proposals only</option></select>
+      <select id="dev-clinic-filter"><option value="">All clinics</option></select>
+    </div>
+    <div class="scroll-container">
+      <table id="dev-table"></table>
+    </div>
+  </div>
+</section>
+
+<!-- TAB 4: SHIFT CHANGE APPROVER -->
+<section class="section" id="shift">
+  <div class="split">
+    <div class="card">
+      <div class="card-head">
+        <div class="icon">🔄</div>
+        <div>
+          <h2>Shift Change Request
+            <span class="sub">Last-minute changes, doctor requests or emergency adjustments.</span>
+          </h2>
+        </div>
+      </div>
+
+      <div class="form-row"><label>Clinic</label><select id="shift-clinic"><option value="">— all clinics —</option></select></div>
+      <div class="form-row"><label>Doctor</label><select id="shift-doctor"></select></div>
+      <div class="form-row"><label>Date</label><input type="date" id="shift-date"></div>
+      <div class="form-row"><label>Current Shift</label><input type="text" id="shift-current" readonly placeholder="(auto-filled)"></div>
+      <div class="form-row"><label>New Start Time</label><input type="time" id="shift-new-st"></div>
+      <div class="form-row"><label>New End Time</label><input type="time" id="shift-new-et"></div>
+      <div class="form-row"><label>Reason</label><textarea id="shift-reason" placeholder="e.g. Personal emergency, equipment delivery"></textarea></div>
+
+      <div style="margin-top: 14px; display: flex; gap: 10px;">
+        <button class="acc" id="btn-approve-shift" disabled>Approve & Apply</button>
+        <button class="ghost" id="btn-clear-shift">Clear</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="live-impact empty" id="shift-impact">
+        <div class="placeholder">⚡ Select a doctor and date — impact will appear here instantly.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TAB 5: LEAVE APPROVER -->
+<section class="section" id="leave">
+  <div class="split">
+    <div class="card">
+      <div class="card-head">
+        <div class="icon">🏖️</div>
+        <div>
+          <h2>Leave Request
+            <span class="sub">Capacity + patient impact checks across the requested date range.</span>
+          </h2>
+        </div>
+      </div>
+
+      <div class="form-row"><label>Clinic</label><select id="leave-clinic"><option value="">— all clinics —</option></select></div>
+      <div class="form-row"><label>Doctor</label><select id="leave-doctor"></select></div>
+      <div class="form-row"><label>Start Date</label><input type="date" id="leave-start"></div>
+      <div class="form-row"><label>End Date</label><input type="date" id="leave-end"></div>
+      <div class="form-row"><label>Leave Type</label>
+        <select id="leave-type">
+          <option value="PL">Planned Leave (PL)</option>
+          <option value="CL">Casual Leave (CL)</option>
+          <option value="SL">Sick Leave (SL)</option>
+          <option value="EL">Emergency Leave (EL)</option>
+          <option value="UL">Unplanned Leave (UL)</option>
+        </select>
+      </div>
+      <div class="form-row"><label>Reason</label><textarea id="leave-reason" placeholder="e.g. Family wedding, medical, personal"></textarea></div>
+
+      <div style="margin-top: 14px; display: flex; gap: 10px;">
+        <button class="acc" id="btn-approve-leave" disabled>Approve Allowed Days</button>
+        <button class="ghost" id="btn-clear-leave">Clear</button>
+      </div>
+    </div>
+
+    <div>
+      <div class="live-impact empty" id="leave-impact">
+        <div class="placeholder">⚡ Select doctor + dates — impact across every day in the range will appear here.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TAB 6: PATIENT IMPACT -->
+<section class="section" id="impact">
+  <div class="split">
+    <div class="card">
+      <div class="card-head">
+        <div class="icon">👤</div>
+        <div>
+          <h2>Patient Impact Lookup
+            <span class="sub">Any (doctor, date) — see exactly which patients are affected.</span>
+          </h2>
+        </div>
+      </div>
+
+      <div class="form-row"><label>Clinic</label><select id="impact-clinic"><option value="">— all clinics —</option></select></div>
+      <div class="form-row"><label>Doctor</label><select id="impact-doctor"></select></div>
+      <div class="form-row"><label>Date</label><input type="date" id="impact-date"></div>
+    </div>
+
+    <div>
+      <div class="live-impact empty" id="impact-result">
+        <div class="placeholder">⚡ Select doctor + date — patient breakdown will appear here.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<script>
+// ============== HEADER META ==============
+document.getElementById('meta-date').textContent = new Date().toLocaleDateString('en-IN', {weekday:'short', day:'numeric', month:'short', year:'numeric'});
+
+// ============== GLOBAL STATE ==============
+const state = {
+  files: {cmf: null, roster: null, capacity: null, appts: null},
+  data: { cmf: null, rosters: null, capacity: null, appts: null },
+  generated: null,
+  approvals: []
+};
+
+// ============== TAB SWITCHING ==============
+document.querySelectorAll('nav button').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  };
+});
+
+// ============== UPLOAD HANDLERS ==============
+function setStatus(id, text, isError = false) {
+  const s = document.getElementById('status-'+id);
+  s.textContent = text;
+  s.className = 'status' + (isError ? ' err' : '');
+}
+function setStats(id, text) {
+  const s = document.getElementById('stats-'+id);
+  s.textContent = text;
+  s.style.display = 'block';
+}
+function markLoaded(id) {
+  document.getElementById('card-'+id).classList.add('loaded');
+  updateUploadProgress();
+}
+function updateUploadProgress() {
+  const keys = ['cmf','roster','capacity','appts'];
+  const loaded = keys.filter(k => state.files[k]).length;
+  document.getElementById('upload-count').textContent = loaded;
+  const labels = {cmf:'Active IPs (CMF)', roster:'Roster123', capacity:'Capacity Details', appts:'Appointments'};
+  const next = keys.find(k => !state.files[k]);
+  document.getElementById('upload-next').textContent = next ? `Next: ${labels[next]}` : '✓ All loaded — ready to process.';
+  document.getElementById('btn-process-uploads').disabled = (loaded < 4);
+}
+
+function readXlsxFile(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = e => {
+      try {
+        const wb = XLSX.read(e.target.result, {type: 'array', cellDates: true});
+        res(wb);
+      } catch (err) { rej(err); }
+    };
+    r.onerror = rej;
+    r.readAsArrayBuffer(file);
+  });
+}
+
+document.getElementById('file-cmf').onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  state.files.cmf = f;
+  setStatus('cmf','Loading...');
+  try {
+    const wb = await readXlsxFile(f);
+    const sheetName = wb.SheetNames[0];
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {defval: null});
+    setStats('cmf', `${rows.length.toLocaleString()} patient rows · sheet "${sheetName}"`);
+    state.data.cmf = {raw: rows};
+    setStatus('cmf', 'Loaded');
+    markLoaded('cmf');
+  } catch (err) { setStatus('cmf', 'Error: '+err.message, true); }
+};
+document.getElementById('file-roster').onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  state.files.roster = f;
+  setStatus('roster','Loading...');
+  try {
+    const wb = await readXlsxFile(f);
+    const data = {};
+    wb.SheetNames.forEach(s => {
+      data[s] = XLSX.utils.sheet_to_json(wb.Sheets[s], {header: 1, defval: null});
+    });
+    setStats('roster', `${wb.SheetNames.length} sheets: ${wb.SheetNames.join(', ')}`);
+    state.data.rosters = data;
+    setStatus('roster', 'Loaded');
+    markLoaded('roster');
+  } catch (err) { setStatus('roster', 'Error: '+err.message, true); }
+};
+document.getElementById('file-capacity').onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  state.files.capacity = f;
+  setStatus('capacity','Loading...');
+  try {
+    const wb = await readXlsxFile(f);
+    const sn = wb.SheetNames;
+    const sheet1 = XLSX.utils.sheet_to_json(wb.Sheets[sn[0]], {defval: null});
+    const timingSheet = sn.length > 1 ? XLSX.utils.sheet_to_json(wb.Sheets[sn[1]], {defval: null}) : [];
+    setStats('capacity', `${sheet1.length} doctors · ${timingSheet.length} clinic timings`);
+    state.data.capacity = {doctors: sheet1, timings: timingSheet};
+    setStatus('capacity', 'Loaded');
+    markLoaded('capacity');
+  } catch (err) { setStatus('capacity', 'Error: '+err.message, true); }
+};
+document.getElementById('file-appts').onchange = async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  state.files.appts = f;
+  setStatus('appts','Loading...');
+  try {
+    const wb = await readXlsxFile(f);
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval: null});
+    setStats('appts', `${rows.length.toLocaleString()} appointment rows`);
+    state.data.appts = {raw: rows};
+    setStatus('appts', 'Loaded');
+    markLoaded('appts');
+  } catch (err) { setStatus('appts', 'Error: '+err.message, true); }
+};
+
+document.getElementById('btn-process-uploads').onclick = () => {
+  try {
+    indexAllData();
+    populateMonthDropdown();
+    document.querySelector('nav button[data-tab="generate"]').click();
+    document.getElementById('btn-generate').disabled = false;
+  } catch (err) { alert('Error processing: '+err.message); console.error(err); }
+};
+
+function populateMonthDropdown() {
+  const sel = document.getElementById('target-month');
+  const months = state.data.rosters._monthOrder;
+  if (!months || !months.length) {
+    sel.innerHTML = '<option value="">No months detected in roster file</option>';
+    return;
+  }
+  const proc = state.data.rosters._processed;
+  let html = '<option value="">— select target month —</option>';
+  // Option 1: re-generate any detected month
+  html += '<optgroup label="Re-generate from uploaded months">';
+  months.forEach(mk => { html += `<option value="${mk}">${proc[mk].monthLabel} (uploaded)</option>`; });
+  html += '</optgroup>';
+  // Option 2: generate the NEXT month after the latest uploaded
+  const latest = months[months.length - 1];
+  const [ly, lm] = latest.split('-').map(Number);
+  const nextDate = new Date(ly, lm, 1); // lm is already +1 because month is 0-indexed input
+  const nextKey = `${nextDate.getFullYear()}-${String(nextDate.getMonth()+1).padStart(2,'0')}`;
+  const MN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const nextLabel = `${MN[nextDate.getMonth()]} ${nextDate.getFullYear()}`;
+  html += `<optgroup label="Generate new month"><option value="${nextKey}|new">${nextLabel} (NEW — built from ${proc[latest].monthLabel} pattern)</option></optgroup>`;
+  sel.innerHTML = html;
+  sel.onchange = () => {
+    const v = sel.value;
+    const info = document.getElementById('month-info');
+    if (!v) { info.textContent = ''; renderHolidayPicker(null); return; }
+    const isNew = v.endsWith('|new');
+    const key = v.replace('|new', '');
+    if (isNew) {
+      info.innerHTML = `🆕 <strong>New month generation</strong>: doctor list, shift patterns, weekly-off patterns and clinic assignments will be carried forward from <strong>${proc[latest].monthLabel}</strong>. Sundays/continuity reference <strong>${proc[latest].monthLabel}</strong>.`;
+    } else if (proc[key]) {
+      const idx = months.indexOf(key);
+      const prior = idx > 0 ? proc[months[idx-1]] : null;
+      info.innerHTML = prior
+        ? `📋 Re-generating <strong>${proc[key].monthLabel}</strong> using its uploaded baseline. Continuity reference: <strong>${prior.monthLabel}</strong>.`
+        : `📋 Re-generating <strong>${proc[key].monthLabel}</strong> using its uploaded baseline. No prior month available for continuity.`;
+    }
+    renderHolidayPicker(key);
+  };
+}
+
+// ============== INDIA PUBLIC HOLIDAY DATABASE (2026) ==============
+// Tentative dates — Hindu/Muslim festivals follow lunar calendar; confirm with HR before applying.
+const HOLIDAY_DB_2026 = [
+  {date: '2026-01-01', name: "New Year's Day", regions: 'all'},
+  {date: '2026-01-14', name: 'Makar Sankranti / Pongal', regions: 'all'},
+  {date: '2026-01-26', name: 'Republic Day', regions: 'all'},
+  {date: '2026-03-03', name: 'Holi', regions: 'most-north'},
+  {date: '2026-03-21', name: 'Eid al-Fitr (~tentative)', regions: 'all'},
+  {date: '2026-04-02', name: 'Ram Navami', regions: 'most'},
+  {date: '2026-04-10', name: 'Good Friday', regions: 'all'},
+  {date: '2026-04-14', name: 'Dr. Ambedkar Jayanti', regions: 'most'},
+  {date: '2026-04-21', name: 'Mahavir Jayanti', regions: 'most'},
+  {date: '2026-05-01', name: 'Labour Day / Maharashtra Day', regions: 'MH-only'},
+  {date: '2026-05-31', name: 'Buddha Purnima (~tentative)', regions: 'most'},
+  {date: '2026-06-26', name: 'Eid al-Adha / Bakri Eid (~tentative)', regions: 'all'},
+  {date: '2026-07-26', name: 'Muharram (~tentative)', regions: 'all'},
+  {date: '2026-08-15', name: 'Independence Day', regions: 'all'},
+  {date: '2026-08-31', name: 'Onam (~tentative)', regions: 'KL'},
+  {date: '2026-09-04', name: 'Janmashtami (~tentative)', regions: 'most'},
+  {date: '2026-09-15', name: 'Ganesh Chaturthi (~tentative)', regions: 'MH'},
+  {date: '2026-09-25', name: 'Eid Milad-un-Nabi (~tentative)', regions: 'all'},
+  {date: '2026-10-02', name: 'Gandhi Jayanti', regions: 'all'},
+  {date: '2026-10-21', name: 'Dussehra / Vijaya Dashami', regions: 'all'},
+  {date: '2026-11-09', name: 'Diwali (~tentative)', regions: 'all'},
+  {date: '2026-11-10', name: 'Govardhan Puja (~tentative)', regions: 'most-north'},
+  {date: '2026-11-12', name: 'Bhai Dooj (~tentative)', regions: 'most-north'},
+  {date: '2026-11-24', name: 'Guru Nanak Jayanti (~tentative)', regions: 'most'},
+  {date: '2026-12-25', name: 'Christmas Day', regions: 'all'},
+];
+
+function renderHolidayPicker(monthKey) {
+  const list = document.getElementById('holiday-list');
+  if (!monthKey) {
+    list.innerHTML = '<div class="hint">Select a target month first — relevant holidays will appear here.</div>';
+    renderHolidaySelected();
+    return;
+  }
+  const [year, monthNum] = monthKey.split('-').map(Number);
+  // Filter holidays within the target month
+  const filtered = HOLIDAY_DB_2026.filter(h => {
+    const [hy, hm] = h.date.split('-').map(Number);
+    return hy === year && hm === monthNum;
+  });
+  if (!filtered.length) {
+    list.innerHTML = `<div class="hint">No common Indian public holidays in this month — use the custom date field below for any local/clinic-specific holiday.</div>`;
+    renderHolidaySelected();
+    return;
+  }
+  list.innerHTML = filtered.map(h => `
+    <label class="holiday-item">
+      <input type="checkbox" class="h-cb" value="${h.date}" data-name="${h.name}">
+      <span class="h-date">${h.date.slice(8,10)} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(h.date.slice(5,7))-1]}</span>
+      <span class="h-name">${h.name}</span>
+    </label>
+  `).join('');
+  list.querySelectorAll('.h-cb').forEach(cb => cb.onchange = renderHolidaySelected);
+  document.getElementById('holidays-custom').oninput = renderHolidaySelected;
+  renderHolidaySelected();
+}
+
+function renderHolidaySelected() {
+  const dates = getSelectedHolidayDates();
+  const box = document.getElementById('holiday-selected');
+  if (!dates.length) {
+    box.innerHTML = '<span style="opacity:.6">No holidays selected (only Sundays will trigger Sunday-logic).</span>';
+  } else {
+    box.innerHTML = '<strong>Active:</strong> ' + dates.map(d => `<span class="pill">${d}</span>`).join('');
+  }
+}
+
+function getSelectedHolidayDates() {
+  const checked = [...document.querySelectorAll('.h-cb:checked')].map(cb => cb.value);
+  const customStr = document.getElementById('holidays-custom').value.trim();
+  const customs = customStr ? customStr.split(',').map(s => s.trim()).filter(s => /^\d{4}-\d{2}-\d{2}$/.test(s)) : [];
+  return [...new Set([...checked, ...customs])].sort();
+}
+
+// ============== DATA INDEXING ==============
+function indexAllData() {
+  const capDocs = state.data.capacity.doctors;
+  const capMap = {};
+  capDocs.forEach(r => {
+    const name = r.doctorName || r['Doctor Name'] || r['Name'] || Object.values(r)[4];
+    if (!name) return;
+    const role = r['CD/TD'] || r.role || Object.values(r)[5];
+    const pri = r['Opinoin Priority'] || r['Opinion Priority'] || r.priority || r['As Per 3 Month Trend'] || Object.values(r)[7];
+    const clinic = r.clincName || r['clinicName'] || r['Clinic'] || Object.values(r)[2];
+    capMap[String(name).trim().toLowerCase()] = {role, priority: pri, clinic};
+  });
+  if (capMap['harshitha rajawat']) capMap['harshita rajawat'] = capMap['harshitha rajawat'];
+
+  // Process ALL sheets dynamically — sheet name is just a label; we use the date columns to identify the month.
+  state.data.rosters._processed = {};
+  state.data.rosters._monthOrder = []; // chronologically sorted month keys (YYYY-MM)
+  const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  Object.keys(state.data.rosters).forEach(sheetName => {
+    if (sheetName.startsWith('_')) return; // skip metadata keys
+    const rows = state.data.rosters[sheetName];
+    if (!rows || rows.length < 2) return;
+    const header = rows[0];
+    const ndays = Math.floor((header.length - 4) / 2);
+    const dateCols = [];
+    for (let i = 0; i < ndays; i++) {
+      const v = header[4 + 2*i];
+      if (v) {
+        const s = String(v).split('_')[0];
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) dateCols.push(s);
+      }
+    }
+    if (!dateCols.length) return; // not a roster sheet
+    // Determine month from first date
+    const firstD = new Date(dateCols[0]);
+    const year = firstD.getFullYear();
+    const monthNum = firstD.getMonth() + 1;
+    const monthKey = `${year}-${String(monthNum).padStart(2,'0')}`;
+    const monthLabel = `${MONTH_NAMES[monthNum-1]} ${year}`;
+    const doctors = [];
+    for (let i = 1; i < rows.length; i++) {
+      const r = rows[i];
+      if (!r || r[0] == null) continue;
+      const pattern = {};
+      for (let d = 0; d < ndays; d++) {
+        const st = r[4 + 2*d], et = r[5 + 2*d];
+        if (st && String(st).trim() !== '') {
+          pattern[dateCols[d]] = [normalizeTime(st), normalizeTime(et)];
+        }
+      }
+      const name = String(r[1]).trim();
+      const cap = capMap[name.toLowerCase()];
+      doctors.push({
+        doctorId: parseInt(r[0]), doctorName: name,
+        clinicId: r[2] ? parseInt(r[2]) : null,
+        clincName: String(r[3] || ''),
+        manualPattern: pattern,
+        role: cap ? cap.role : 'TD',
+        priority: cap ? cap.priority : 'TD',
+        isClinical: !!cap,
+        daysWorked: Object.keys(pattern).length
+      });
+    }
+    state.data.rosters._processed[monthKey] = {
+      sheetName, monthKey, monthLabel, year, monthNum,
+      doctors, dateCols
+    };
+    state.data.rosters._monthOrder.push(monthKey);
+  });
+  state.data.rosters._monthOrder.sort();
+
+  // CMF visits-left per TD
+  const tdLoad = {}; // name lower -> {patients, visitsLeft}
+  state.data.cmf.raw.forEach(r => {
+    const td = r.treating_doctor;
+    if (!td || td === 'NULL') return;
+    const tdL = String(td).trim().toLowerCase();
+    let left = parseFloat(r.visits_left);
+    if (isNaN(left)) left = 0;
+    if (left <= 0) return;
+    tdLoad[tdL] = tdLoad[tdL] || {patients: 0, visitsLeft: 0};
+    tdLoad[tdL].patients += 1;
+    tdLoad[tdL].visitsLeft += left;
+  });
+  state.data.cmf.tdLoad = tdLoad;
+
+  // Appointments index
+  const ap = state.data.appts.raw;
+  const treatByProvDate = {};
+  const apptsByProvDate = {};
+  let maxDate = null;
+  ap.forEach(a => {
+    const st = a.appointment_start_time;
+    if (!st) return;
+    const d = parseAppointmentDate(st);
+    if (!d) return;
+    if (!maxDate || d > maxDate) maxDate = d;
+    const dateStr = formatDate(d);
+    const stype = a.service_type;
+    const prov = a.provider_name;
+    if (prov && stype) {
+      const pl = String(prov).trim().toLowerCase();
+      const key = pl + '||' + dateStr;
+      (apptsByProvDate[key] = apptsByProvDate[key] || []).push(a);
+      if (a.status === 'Scheduled' && (stype === 'Protocol' || stype === 'Prevention' || stype === 'Pain Management' || stype === 'Treatment Visit')) {
+        treatByProvDate[key] = (treatByProvDate[key] || 0) + 1;
+      }
+    }
+  });
+  state.data.appts.treatByProvDate = treatByProvDate;
+  state.data.appts.apptsByProvDate = apptsByProvDate;
+
+  // Peak hours (last 90d)
+  if (!maxDate) maxDate = new Date();
+  const winStart = new Date(maxDate); winStart.setDate(winStart.getDate() - 90);
+  const clinicHour = {};
+  ap.forEach(a => {
+    const d = parseAppointmentDate(a.appointment_start_time);
+    if (!d || d < winStart || d > maxDate) return;
+    if (a.status !== 'Completed') return;
+    if (a.service_type !== 'Consultation') return;
+    if (d.getDay() === 0) return;
+    const cl = a.care_center_name;
+    if (!cl) return;
+    const h = d.getHours();
+    clinicHour[cl] = clinicHour[cl] || {};
+    clinicHour[cl][h] = (clinicHour[cl][h] || 0) + 1;
+  });
+  const peak = {};
+  Object.entries(clinicHour).forEach(([cl, hrs]) => {
+    peak[cl] = Object.entries(hrs).sort((a,b) => b[1]-a[1]).slice(0,3).map(([h,c]) => [parseInt(h), c]);
+  });
+  state.data.appts.peak = peak;
+}
+
+function normalizeTime(v) {
+  if (v == null) return '';
+  if (typeof v === 'string') return v;
+  if (v instanceof Date) return v.toTimeString().slice(0,8);
+  if (typeof v === 'number' && v < 1) {
+    const t = Math.round(v * 86400);
+    return `${String(Math.floor(t/3600)).padStart(2,'0')}:${String(Math.floor((t%3600)/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`;
+  }
+  return String(v);
+}
+function parseAppointmentDate(v) {
+  if (!v) return null;
+  if (v instanceof Date) return v;
+  const d = new Date(v); return isNaN(d) ? null : d;
+}
+function formatDate(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+// ============== ROSTER GENERATION (same as before) ==============
+const SUN_2DOC = new Set(['ANDHERI','LINKING ROAD','MALLESHWARAM']);
+const POWAI_CLOSED = 'POWAI';
+const MH_CLINICS = new Set(['ANDHERI','AUNDH','BORIVALI','CHURCHGATE','GHATKOPAR','KOREGAON PARK','KOTHRUD','LINKING ROAD','NAVI MUMBAI','POWAI','THANE']);
+
+function getPriorMonthSundayCount(targetMonthKey) {
+  // Find the month immediately preceding targetMonthKey
+  const counts = {}; const lastSunWorkers = new Set();
+  const months = state.data.rosters._monthOrder;
+  const idx = months.indexOf(targetMonthKey);
+  // If target is a "new" month, use the latest available
+  let priorKey;
+  if (idx > 0) priorKey = months[idx - 1];
+  else if (idx === -1 && months.length) priorKey = months[months.length - 1];
+  else return {counts, lastSunWorkers, priorLabel: null, lastSunDate: null};
+  const prior = state.data.rosters._processed[priorKey];
+  if (!prior) return {counts, lastSunWorkers, priorLabel: null, lastSunDate: null};
+  const priorSundays = prior.dateCols.filter(d => new Date(d).getDay() === 0);
+  const lastSunDate = priorSundays[priorSundays.length - 1] || null;
+  prior.doctors.forEach(d => {
+    let c = 0;
+    priorSundays.forEach(s => { if (d.manualPattern[s]) c++; });
+    counts[d.doctorId] = c;
+    if (lastSunDate && d.manualPattern[lastSunDate]) lastSunWorkers.add(d.doctorId);
+  });
+  return {counts, lastSunWorkers, priorLabel: prior.monthLabel, lastSunDate};
+}
+
+function buildNewMonthFromPrior(targetMonthKey) {
+  // Carry forward prior month's pattern to a new month.
+  // - Doctor list = prior month's doctors
+  // - Shift pattern per weekday = most-frequent (ST,ET) per doctor in prior month per dow
+  // - Weekly off pattern (which day-of-week they typically take off) inferred from prior
+  const months = state.data.rosters._monthOrder;
+  const priorKey = months[months.length - 1];
+  const prior = state.data.rosters._processed[priorKey];
+  if (!prior) throw new Error('No prior month to build from');
+  const [year, monthNum] = targetMonthKey.split('-').map(Number);
+  const daysInMonth = new Date(year, monthNum, 0).getDate();
+  const dateCols = [];
+  for (let day = 1; day <= daysInMonth; day++) {
+    dateCols.push(`${year}-${String(monthNum).padStart(2,'0')}-${String(day).padStart(2,'0')}`);
+  }
+  // For each prior doctor, compute (a) typical shift per dow, (b) off-day-of-week frequency
+  const newDoctors = prior.doctors.map(pd => {
+    const shiftsByDow = {}; // dow -> [[st,et], ...]
+    const offCountByDow = {};
+    prior.dateCols.forEach(date => {
+      const dow = new Date(date).getDay();
+      const sched = pd.manualPattern[date];
+      if (sched) {
+        (shiftsByDow[dow] = shiftsByDow[dow] || []).push(sched);
+      } else {
+        offCountByDow[dow] = (offCountByDow[dow] || 0) + 1;
+      }
+    });
+    // Compute most-frequent shift per dow
+    const typicalShiftByDow = {};
+    Object.entries(shiftsByDow).forEach(([dow, list]) => {
+      const ctr = {};
+      list.forEach(s => { const k = s[0]+'|'+s[1]; ctr[k] = (ctr[k]||0)+1; });
+      const best = Object.entries(ctr).sort((a,b) => b[1]-a[1])[0];
+      if (best) typicalShiftByDow[dow] = best[0].split('|');
+    });
+    // Build new pattern: if doctor was working that dow in prior, give them typical shift; otherwise off
+    const pattern = {};
+    dateCols.forEach(date => {
+      const dow = new Date(date).getDay();
+      const totalOnDow = (shiftsByDow[dow] || []).length;
+      const totalOffDow = offCountByDow[dow] || 0;
+      // If majority of prior month's dow was working, schedule them
+      if (totalOnDow > totalOffDow && typicalShiftByDow[dow]) {
+        pattern[date] = typicalShiftByDow[dow];
+      }
+    });
+    return {
+      ...pd,
+      manualPattern: pattern,
+      daysWorked: Object.keys(pattern).length
+    };
+  });
+  return {
+    monthKey: targetMonthKey,
+    monthLabel: `${['January','February','March','April','May','June','July','August','September','October','November','December'][monthNum-1]} ${year}`,
+    year, monthNum,
+    doctors: newDoctors,
+    dateCols,
+    sheetName: '(generated)'
+  };
+}
+
+function generateRoster(targetMonthSelection, holidays, continuity, peakStrategy) {
+  // targetMonthSelection is either "YYYY-MM" (re-generate) or "YYYY-MM|new" (build new)
+  const isNewMonth = targetMonthSelection.endsWith('|new');
+  const monthKey = targetMonthSelection.replace('|new', '');
+  let proc;
+  if (isNewMonth) {
+    proc = buildNewMonthFromPrior(monthKey);
+  } else {
+    proc = state.data.rosters._processed[monthKey];
+    if (!proc) throw new Error('No data for '+monthKey);
+  }
+  const {doctors, dateCols, monthLabel} = proc;
+  const month = monthLabel; // for display
+  const targetMonthKey = monthKey;
+  const sundays = dateCols.filter(d => new Date(d).getDay() === 0);
+  const holidaySet = new Set(holidays);
+  const clinicalActive = doctors.filter(d => d.isClinical && d.daysWorked > 0);
+
+  clinicalActive.forEach(d => {
+    const wdOff = {};
+    dateCols.forEach(date => {
+      if (!d.manualPattern[date]) {
+        const dow = new Date(date).getDay();
+        if (dow !== 0) wdOff[dow] = (wdOff[dow]||0)+1;
+      }
+    });
+    let best = 5, max = 0;
+    Object.entries(wdOff).forEach(([k,v]) => { if (v > max) { max = v; best = parseInt(k); } });
+    d.preferredOffWeekday = best;
+  });
+
+  let priorSunCounts = {}, lastSunWorkers = new Set(), priorLabel = null, lastSunDate = null;
+  if (continuity === 'balance') {
+    const ms = getPriorMonthSundayCount(targetMonthKey);
+    priorSunCounts = ms.counts; lastSunWorkers = ms.lastSunWorkers;
+    priorLabel = ms.priorLabel; lastSunDate = ms.lastSunDate;
+    clinicalActive.forEach(d => { d.maySundays = priorSunCounts[d.doctorId]||0; d.workedMay31 = lastSunWorkers.has(d.doctorId); });
+  } else clinicalActive.forEach(d => { d.maySundays = 0; d.workedMay31 = false; });
+
+  const sunStyleDates = {};
+  clinicalActive.forEach(d => {
+    if (!sunStyleDates[d.clincName]) {
+      sunStyleDates[d.clincName] = [...sundays];
+      if (MH_CLINICS.has(d.clincName)) holidays.forEach(h => { if (dateCols.includes(h)) sunStyleDates[d.clincName].push(h); });
+    }
+  });
+
+  const sunAssignments = {};
+  const juneCount = {};
+  const byClinic = {};
+  clinicalActive.forEach(d => { (byClinic[d.clincName] = byClinic[d.clincName] || []).push(d); });
+
+  Object.entries(byClinic).forEach(([clinic, docs]) => {
+    const rotDates = sunStyleDates[clinic] || sundays;
+    const cds = docs.filter(d => ['CD','CD/TD','ED/CD'].includes(d.role));
+    const tds = docs.filter(d => ['TD','ED/TD'].includes(d.role));
+    if (clinic === POWAI_CLOSED) { rotDates.forEach(s => sunAssignments[clinic+'||'+s] = []); return; }
+    let prevPicks = new Set();
+    rotDates.forEach((sun, idx) => {
+      let picks = [];
+      const excl = new Set([...prevPicks]);
+      // No back-to-back: doctors who worked the LAST Sunday of prior month are excluded from FIRST Sunday of target month
+      if (continuity === 'balance' && rotDates[0] === sun) docs.filter(d => d.workedMay31).forEach(d => excl.add(d.doctorId));
+      if (SUN_2DOC.has(clinic)) {
+        const sorter = (a,b) => ((a.maySundays + (juneCount[a.doctorId]||0)) - (b.maySundays + (juneCount[b.doctorId]||0))) || a.doctorName.localeCompare(b.doctorName);
+        const eligCd = cds.filter(d => !excl.has(d.doctorId)).sort(sorter);
+        const eligTd = tds.filter(d => !excl.has(d.doctorId)).sort(sorter);
+        if (eligCd[0]) picks.push(eligCd[0]);
+        if (eligTd[0]) picks.push(eligTd[0]);
+        if (!picks.length) { if (cds[0]) picks.push(cds[0]); if (tds[0]) picks.push(tds[0]); }
+      } else {
+        const all = [...cds, ...tds]; const target = Math.max(1, Math.floor(all.length/2));
+        let elig = all.filter(d => !excl.has(d.doctorId));
+        elig.sort((a,b) => ((a.maySundays + (juneCount[a.doctorId]||0)) - (b.maySundays + (juneCount[b.doctorId]||0))) || a.doctorName.localeCompare(b.doctorName));
+        picks = elig.slice(0, target);
+        if (picks.length < target) {
+          const more = all.filter(d => !picks.includes(d)).sort((a,b) => ((a.maySundays + (juneCount[a.doctorId]||0)) - (b.maySundays + (juneCount[b.doctorId]||0))));
+          picks = picks.concat(more.slice(0, target - picks.length));
+        }
+      }
+      sunAssignments[clinic+'||'+sun] = picks;
+      prevPicks = new Set(picks.map(p => p.doctorId));
+      picks.forEach(p => juneCount[p.doctorId] = (juneCount[p.doctorId]||0)+1);
+    });
+  });
+
+  const roster = {};
+  doctors.forEach(d => {
+    roster[d.doctorId] = {};
+    dateCols.forEach(date => roster[d.doctorId][date] = d.manualPattern[date] || null);
+  });
+
+  holidays.forEach(h => {
+    if (!dateCols.includes(h)) return;
+    doctors.forEach(d => {
+      if (!d.daysWorked || MH_CLINICS.has(d.clincName)) return;
+      if (roster[d.doctorId][h]) roster[d.doctorId][h] = null;
+    });
+  });
+
+  const deviations = [];
+  const compoffSet = new Set();
+  const sunByDoctor = {};
+  Object.entries(sunAssignments).forEach(([key, docs]) => {
+    const [cl, s] = key.split('||');
+    docs.forEach(d => (sunByDoctor[d.doctorId] = sunByDoctor[d.doctorId] || new Set()).add(s));
+  });
+
+  clinicalActive.forEach(d => {
+    const rid = d.doctorId;
+    const rotDates = sunStyleDates[d.clincName] || sundays;
+    rotDates.forEach(s => {
+      const manual = d.manualPattern[s];
+      const isMayDay = s === '2026-05-01';
+      const suf = (isMayDay && MH_CLINICS.has(d.clincName)) ? ' (1 May Maharashtra Day)' : '';
+      if (d.clincName === POWAI_CLOSED) {
+        if (roster[rid][s]) { roster[rid][s] = null; deviations.push({doctorId:rid, doctorName:d.doctorName, clinic:d.clincName, date:s, manual, generated:null, reason:`POWAI closed${isMayDay?' 1 May':' Sundays'}`, type:'Applied'}); }
+        return;
+      }
+      const set = sunByDoctor[rid];
+      if (set && set.has(s)) {
+        const newSch = ['10:00:00','18:00:00'];
+        if (!manual || manual[0] !== newSch[0] || manual[1] !== newSch[1]) deviations.push({doctorId:rid, doctorName:d.doctorName, clinic:d.clincName, date:s, manual, generated:newSch, reason:`Sunday-logic duty 10-18 (rotation)${suf}`, type:'Applied'});
+        roster[rid][s] = newSch;
+      } else {
+        if (roster[rid][s]) deviations.push({doctorId:rid, doctorName:d.doctorName, clinic:d.clincName, date:s, manual, generated:null, reason:`Sunday-logic off (50% rotation)${suf}`, type:'Applied'});
+        roster[rid][s] = null;
+      }
+    });
+  });
+
+  clinicalActive.forEach(d => {
+    const rid = d.doctorId; if (!sunByDoctor[rid]) return;
+    sunByDoctor[rid].forEach(sun => {
+      const sunD = new Date(sun); const isCD = ['CD','CD/TD','ED/CD'].includes(d.role);
+      const candidates = [];
+      for (let k = 1; k <= 7; k++) {
+        const cand = new Date(sunD); cand.setDate(cand.getDate()+k);
+        const cs = formatDate(cand);
+        if (!dateCols.includes(cs)) continue;
+        if (isCD && cand.getDay() === 6) continue;
+        if (cand.getDay() === 0) continue;
+        if (!roster[rid][cs]) continue;
+        candidates.push({cand, cs});
+      }
+      if (!candidates.length) return;
+      let chosen = candidates.find(c => c.cand.getDay() === d.preferredOffWeekday) || candidates[0];
+      const manual = d.manualPattern[chosen.cs];
+      roster[rid][chosen.cs] = null;
+      deviations.push({doctorId:rid, doctorName:d.doctorName, clinic:d.clincName, date:chosen.cs, manual, generated:null, reason:`Comp-off for ${sun} (${isCD?'CD: weekday only':'TD/ED: any day'})`, type:'Applied', compoff:true, isCDcompoff:isCD});
+      compoffSet.add(rid+'||'+chosen.cs);
+    });
+  });
+
+  const docMeta = {}; clinicalActive.forEach(d => docMeta[d.doctorId] = d);
+  (function fixViolations() {
+    dateCols.forEach(date => {
+      if (new Date(date).getDay() === 0) return;
+      const clLeaves = {};
+      Object.entries(roster).forEach(([rid, sch]) => {
+        const d = docMeta[rid]; if (!d) return;
+        if (sch[date] === null && d.manualPattern[date]) (clLeaves[d.clincName] = clLeaves[d.clincName] || []).push({rid: parseInt(rid), role: d.role});
+      });
+      Object.entries(clLeaves).forEach(([cl, leaves]) => {
+        const cdsOff = leaves.filter(l => ['CD','CD/TD','ED/CD'].includes(l.role));
+        let need = Math.max(0, leaves.length-3) + Math.max(0, cdsOff.length-1);
+        if (need <= 0) return;
+        const compCands = leaves.filter(l => compoffSet.has(l.rid+'||'+date));
+        for (const c of compCands) {
+          if (need <= 0) break;
+          const d = docMeta[c.rid];
+          const dv = deviations.find(x => x.doctorId === c.rid && x.date === date && x.compoff); if (!dv) continue;
+          const m = dv.reason.match(/(\d{4}-\d{2}-\d{2})/); if (!m) continue;
+          const sunD = new Date(m[1]); const isCD = ['CD','CD/TD','ED/CD'].includes(c.role);
+          let alt = null;
+          for (let k = 1; k <= 7; k++) {
+            const cand = new Date(sunD); cand.setDate(cand.getDate()+k);
+            const cs = formatDate(cand);
+            if (!dateCols.includes(cs) || cs === date) continue;
+            if (isCD && cand.getDay() === 6) continue;
+            if (cand.getDay() === 0) continue;
+            if (!d.manualPattern[cs]) continue;
+            if (!roster[c.rid][cs]) continue;
+            let cur = 0, curCd = 0;
+            Object.entries(roster).forEach(([rid2, s2]) => {
+              const d2 = docMeta[rid2]; if (!d2 || d2.clincName !== cl) return;
+              if (s2[cs] === null && d2.manualPattern[cs]) { cur++; if (['CD','CD/TD','ED/CD'].includes(d2.role)) curCd++; }
+            });
+            if (cur >= 3) continue; if (isCD && curCd >= 1) continue;
+            alt = cs; break;
+          }
+          if (alt) {
+            roster[c.rid][date] = d.manualPattern[date];
+            roster[c.rid][alt] = null; dv.date = alt;
+            compoffSet.delete(c.rid+'||'+date); compoffSet.add(c.rid+'||'+alt);
+            need--;
+          }
+        }
+      });
+    });
+  })();
+
+  const peak = state.data.appts.peak;
+  const p12CdsByClinic = {};
+  clinicalActive.forEach(d => {
+    if (['P1','P2'].includes(d.priority) && ['CD','CD/TD','ED/CD'].includes(d.role))
+      (p12CdsByClinic[d.clincName] = p12CdsByClinic[d.clincName] || []).push(d);
+  });
+  function covers(st, et, h) {
+    if (!st || !et) return false;
+    return parseInt(st.split(':')[0]) <= h && h < parseInt(et.split(':')[0]);
+  }
+  const preGaps = [];
+  dateCols.forEach(date => {
+    if (new Date(date).getDay() === 0) return;
+    const byCl = {};
+    Object.entries(roster).forEach(([rid, sch]) => {
+      const d = docMeta[rid]; if (!d || !sch[date]) return;
+      (byCl[d.clincName] = byCl[d.clincName] || []).push({d, s: sch[date]});
+    });
+    Object.entries(byCl).forEach(([cl, list]) => {
+      if (!peak[cl]) return;
+      peak[cl].forEach(([ph, _]) => {
+        const ok = list.some(({d, s}) => ['P1','P2'].includes(d.priority) && ['CD','CD/TD','ED/CD'].includes(d.role) && covers(s[0], s[1], ph));
+        if (!ok) preGaps.push({date, cl, ph});
+      });
+    });
+  });
+  const gapsByDC = {};
+  preGaps.forEach(g => (gapsByDC[g.date+'||'+g.cl] = gapsByDC[g.date+'||'+g.cl] || []).push(g.ph));
+  const proposals = [];
+  Object.entries(gapsByDC).forEach(([key, hours]) => {
+    const [date, cl] = key.split('||');
+    const p12 = p12CdsByClinic[cl] || []; if (!p12.length) return;
+    for (const cd of p12) {
+      const sched = roster[cd.doctorId][date]; if (!sched) continue;
+      const curSt = parseInt(sched[0].split(':')[0]), curEt = parseInt(sched[1].split(':')[0]);
+      const target = new Set(hours); const cur = new Set();
+      for (let h = curSt; h < curEt; h++) cur.add(h);
+      const missing = [...target].filter(h => !cur.has(h));
+      if (!missing.length) continue;
+      const newSt = Math.max(7, Math.min(curSt, ...missing));
+      const newEt = Math.min(21, Math.max(curEt, ...missing.map(h => h+1)));
+      if (newEt - newSt <= 12) {
+        const newSched = [`${String(newSt).padStart(2,'0')}:00:00`, `${String(newEt).padStart(2,'0')}:00:00`];
+        proposals.push({doctorId: cd.doctorId, doctorName: cd.doctorName, clinic: cl, date, manual: sched, generated: newSched, reason: `Proposal: extend shift to ${newSched[0]}-${newSched[1]} for P1/P2 peak at ${missing.map(h=>String(h).padStart(2,'0')+':00').join(',')} (NOT applied — review)`, type: 'Proposal'});
+        if (peakStrategy === 'apply') roster[cd.doctorId][date] = newSched;
+        break;
+      }
+    }
+  });
+
+  return {month, monthKey: targetMonthKey, isNewMonth, dateCols, doctors, sundays, holidaySet, roster, deviations, proposals, peak, p12CdsByClinic, sunAssignments, maySunCounts: priorSunCounts, may31Workers: lastSunWorkers, juneCount, priorLabel, lastSunDate};
+}
+
+document.getElementById('btn-generate').onclick = () => {
+  const monthSel = document.getElementById('target-month').value;
+  if (!monthSel) return alert('Please select a target month');
+  const holidays = getSelectedHolidayDates();
+  const continuity = document.getElementById('continuity').value;
+  const peakStrategy = document.getElementById('peak-strategy').value;
+  document.getElementById('gen-status').innerHTML = '<div class="alert info">Generating roster, please wait...</div>';
+  setTimeout(() => {
+    try {
+      state.generated = generateRoster(monthSel, holidays, continuity, peakStrategy);
+      const note = state.generated.isNewMonth
+        ? `<div class="alert success">✓ <strong>${state.generated.month}</strong> roster generated as a NEW month, built from prior-month pattern.</div>`
+        : `<div class="alert success">✓ <strong>${state.generated.month}</strong> roster re-generated from uploaded baseline.</div>`;
+      document.getElementById('gen-status').innerHTML = note;
+      renderRosterSummary();
+      populateDropdowns();
+      document.getElementById('btn-export-roster').disabled = false;
+      document.querySelector('nav button[data-tab="roster"]').click();
+    } catch (e) {
+      document.getElementById('gen-status').innerHTML = `<div class="alert err">Error: ${e.message}</div>`;
+      console.error(e);
+    }
+  }, 100);
+};
+
+// ============== ROSTER SUMMARY ==============
+function renderRosterSummary() {
+  const g = state.generated; if (!g) return;
+  const total = g.doctors.length;
+  const clinicalActive = g.doctors.filter(d => d.isClinical && d.daysWorked > 0).length;
+  const ncActive = g.doctors.filter(d => !d.isClinical && d.daysWorked > 0).length;
+  const filled = Object.values(g.roster).reduce((s, sch) => s + Object.values(sch).filter(v => v).length, 0);
+  const applied = g.deviations.length;
+  const proposals = g.proposals.length;
+  const cdComp = g.deviations.filter(d => d.compoff && d.isCDcompoff).length;
+  const tdComp = g.deviations.filter(d => d.compoff && !d.isCDcompoff).length;
+  const sunDuty = g.deviations.filter(d => d.reason.includes('Sunday-logic duty')).length;
+
+  document.getElementById('roster-summary').innerHTML = `
+    <div class="kpi-grid">
+      <div class="kpi"><div class="label">Month</div><div class="value">${g.month}</div><div class="sub">${g.dateCols.length} days</div></div>
+      <div class="kpi"><div class="label">Total Doctors</div><div class="value">${total}</div><div class="sub">${clinicalActive} clinical · ${ncActive} non-clinical</div></div>
+      <div class="kpi"><div class="label">Working Cells</div><div class="value">${filled.toLocaleString()}</div></div>
+      <div class="kpi"><div class="label">Applied Deviations</div><div class="value">${applied}</div></div>
+      <div class="kpi"><div class="label">Sunday Duty</div><div class="value">${sunDuty}</div></div>
+      <div class="kpi"><div class="label">CD Comp-offs</div><div class="value">${cdComp}</div><div class="sub">weekday only</div></div>
+      <div class="kpi"><div class="label">TD/ED Comp-offs</div><div class="value">${tdComp}</div><div class="sub">any day</div></div>
+      <div class="kpi"><div class="label">Peak Proposals</div><div class="value">${proposals}</div></div>
+    </div>
+  `;
+  renderDeviations();
+}
+
+function renderDeviations() {
+  const g = state.generated; if (!g) return;
+  const all = g.deviations.filter(d => !d.compoff || d.isCDcompoff).concat(g.proposals);
+  const typeF = document.getElementById('dev-type-filter').value;
+  const clinicF = document.getElementById('dev-clinic-filter').value;
+  const clinics = [...new Set(all.map(d => d.clinic))].sort();
+  const sel = document.getElementById('dev-clinic-filter');
+  if (sel.options.length <= 1) clinics.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o); });
+  let rows = all;
+  if (typeF) rows = rows.filter(d => d.type === typeF);
+  if (clinicF) rows = rows.filter(d => d.clinic === clinicF);
+  document.getElementById('dev-table').innerHTML = `
+    <thead><tr><th>Type</th><th>Doctor</th><th>Clinic</th><th>Pri</th><th>Date</th><th>Manual</th><th>Generated</th><th>Reason</th></tr></thead>
+    <tbody>${rows.slice(0, 500).map(d => {
+      const m = d.manual ? d.manual[0]+'-'+d.manual[1] : '';
+      const ge = d.generated ? d.generated[0]+'-'+d.generated[1] : '';
+      const pri = (g.doctors.find(x => x.doctorId === d.doctorId) || {}).priority || '';
+      return `<tr><td><span class="tag tag-${d.type === 'Applied' ? 'applied' : 'proposal'}">${d.type}</span></td><td>${d.doctorName}</td><td>${d.clinic}</td><td>${pri}</td><td>${d.date}</td><td>${m}</td><td>${ge}</td><td>${d.reason}</td></tr>`;
+    }).join('')}</tbody>`;
+}
+document.getElementById('dev-type-filter').onchange = renderDeviations;
+document.getElementById('dev-clinic-filter').onchange = renderDeviations;
+
+// ============== DROPDOWNS ==============
+function populateDropdowns() {
+  const g = state.generated; if (!g) return;
+  const clinical = g.doctors.filter(d => d.isClinical && d.daysWorked > 0)
+    .sort((a,b) => a.clincName.localeCompare(b.clincName) || a.doctorName.localeCompare(b.doctorName));
+
+  // Clinic dropdown options
+  const clinics = [...new Set(clinical.map(d => d.clincName))].sort();
+  const clinicOpts = '<option value="">— all clinics —</option>' + clinics.map(c => `<option value="${c}">${c}</option>`).join('');
+  ['shift-clinic','leave-clinic','impact-clinic'].forEach(id => {
+    document.getElementById(id).innerHTML = clinicOpts;
+  });
+
+  // Populate doctor dropdown for each tab (initial = all clinics)
+  populateDoctorDropdown('shift', '');
+  populateDoctorDropdown('leave', '');
+  populateDoctorDropdown('impact', '');
+
+  ['shift-date','leave-start','leave-end','impact-date'].forEach(id => {
+    const el = document.getElementById(id);
+    el.value = g.dateCols[0];
+    el.min = g.dateCols[0]; el.max = g.dateCols[g.dateCols.length-1];
+  });
+  computeShiftImpact(); computeLeaveImpact(); computeImpactLookup();
+}
+
+function populateDoctorDropdown(tab, clinicFilter) {
+  const g = state.generated; if (!g) return;
+  const clinical = g.doctors.filter(d => d.isClinical && d.daysWorked > 0
+    && (!clinicFilter || d.clincName === clinicFilter))
+    .sort((a,b) => a.doctorName.localeCompare(b.doctorName));
+  const opts = clinical.map(d => `<option value="${d.doctorId}">${d.doctorName} · ${d.role} · ${d.priority||''}</option>`).join('');
+  const sel = document.getElementById(tab+'-doctor');
+  sel.innerHTML = '<option value="">— select doctor —</option>' + opts;
+  sel.disabled = clinical.length === 0;
+}
+
+['shift','leave','impact'].forEach(tab => {
+  const cs = document.getElementById(tab+'-clinic');
+  if (cs) cs.onchange = () => {
+    populateDoctorDropdown(tab, cs.value);
+    document.getElementById(tab+'-doctor').value = '';
+    if (tab === 'shift') { document.getElementById('shift-current').value = ''; computeShiftImpact(); }
+    else if (tab === 'leave') computeLeaveImpact();
+    else if (tab === 'impact') computeImpactLookup();
+  };
+});
+
+// ============== LIVE IMPACT — SHIFT CHANGE ==============
+function updateShiftCurrent() {
+  const g = state.generated;
+  const did = parseInt(document.getElementById('shift-doctor').value);
+  const date = document.getElementById('shift-date').value;
+  if (!did || !date || !g) { document.getElementById('shift-current').value = ''; return; }
+  const sch = g.roster[did] && g.roster[did][date];
+  document.getElementById('shift-current').value = sch ? sch[0]+' – '+sch[1] : '(OFF)';
+}
+
+function buildLiveImpactHTML(title, doctorLine, miniKpis, verdict, items) {
+  const verdictHtml = verdict ? `<div class="verdict ${verdict.cls}">${verdict.icon} ${verdict.text}</div>` : '';
+  const kpisHtml = miniKpis && miniKpis.length ? `<div class="mini-kpis">${miniKpis.map(k => `<div class="mini-kpi"><div class="v">${k.v}</div><div class="l">${k.l}</div></div>`).join('')}</div>` : '';
+  const itemsHtml = items.length ? `<ul>${items.map(i => `<li class="${i.lvl}"><span class="ic">${i.icon||(i.lvl==='ok'?'✓':i.lvl==='warn'?'⚠':i.lvl==='err'?'✕':'ⓘ')}</span><span>${i.msg}</span></li>`).join('')}</ul>` : '';
+  return `<h3>${title}</h3><div class="doctor-line">${doctorLine}</div>${kpisHtml}${verdictHtml}${itemsHtml}`;
+}
+
+function computeShiftImpact() {
+  const g = state.generated;
+  const did = parseInt(document.getElementById('shift-doctor').value);
+  const date = document.getElementById('shift-date').value;
+  const newSt = document.getElementById('shift-new-st').value;
+  const newEt = document.getElementById('shift-new-et').value;
+  const panel = document.getElementById('shift-impact');
+
+  if (!g || !did) {
+    panel.className = 'live-impact empty';
+    panel.innerHTML = '<div class="placeholder">⚡ Select a doctor — impact will appear here instantly.</div>';
+    document.getElementById('btn-approve-shift').disabled = true;
+    return;
+  }
+  panel.className = 'live-impact';
+  const d = g.doctors.find(x => x.doctorId === did);
+  const cur = g.roster[did][date];
+  const peak = g.peak[d.clincName] || [];
+  const tdL = state.data.cmf.tdLoad[d.doctorName.trim().toLowerCase()] || {patients: 0, visitsLeft: 0};
+  const treatKey = d.doctorName.trim().toLowerCase() + '||' + date;
+  const apptCount = state.data.appts.treatByProvDate[treatKey] || 0;
+
+  const items = [];
+  if (!cur) items.push({lvl:'warn', msg:`Doctor is currently OFF on ${date}. New shift would BRING them back.`});
+  else items.push({lvl:'info', msg:`Current shift: <strong>${cur[0]} – ${cur[1]}</strong>${(newSt && newEt) ? ` · Proposed: <strong>${newSt}:00 – ${newEt}:00</strong>` : ''}`});
+
+  const peakHours = peak.map(([h]) => h);
+  items.push({lvl:'info', msg:`Peak hours at ${d.clincName}: ${peakHours.map(h=>String(h).padStart(2,'0')+':00').join(', ')||'—'}`});
+
+  if (newSt && newEt && cur) {
+    const newStH = parseInt(newSt.split(':')[0]), newEtH = parseInt(newEt.split(':')[0]);
+    if (newStH < 7 || newEtH > 21) items.push({lvl:'warn', msg:'New shift extends outside typical clinic timings (7am–9pm).'});
+    if (newEtH - newStH > 12) items.push({lvl:'warn', msg:'New shift duration exceeds 12 hours.'});
+    if (newEtH - newStH < 4) items.push({lvl:'warn', msg:'New shift duration is under 4 hours (may not be enough for treatment slots).'});
+
+    const oldH = new Set(); for (let h = parseInt(cur[0].split(':')[0]); h < parseInt(cur[1].split(':')[0]); h++) oldH.add(h);
+    const newH = new Set(); for (let h = newStH; h < newEtH; h++) newH.add(h);
+    const dropped = [...oldH].filter(h => !newH.has(h));
+    const droppedPeak = dropped.filter(h => peakHours.includes(h));
+
+    if (droppedPeak.length && ['P1','P2'].includes(d.priority) && ['CD','CD/TD','ED/CD'].includes(d.role)) {
+      // Check alternate coverage
+      const coverers = g.doctors.filter(x => x.isClinical && x.clincName === d.clincName && ['P1','P2'].includes(x.priority) && ['CD','CD/TD','ED/CD'].includes(x.role) && x.doctorId !== did);
+      const altCoversAll = droppedPeak.every(h => coverers.some(c => {
+        const csch = g.roster[c.doctorId][date]; if (!csch) return false;
+        return parseInt(csch[0].split(':')[0]) <= h && h < parseInt(csch[1].split(':')[0]);
+      }));
+      if (altCoversAll) items.push({lvl:'ok', msg:`Dropping peak hours ${droppedPeak.map(h=>String(h).padStart(2,'0')+':00').join(', ')} — but another P1/P2 CD covers them. OK.`});
+      else items.push({lvl:'warn', msg:`Will UNCOVER peak hours ${droppedPeak.map(h=>String(h).padStart(2,'0')+':00').join(', ')} — no other P1/P2 CD at ${d.clincName} that day.`});
+    }
+  }
+
+  if (cur && apptCount > 0) items.push({lvl:'warn', msg:`<strong>${apptCount} treatment appointments</strong> already scheduled for this doctor on ${date}. New shift should still cover those time slots.`});
+  else if (cur && apptCount === 0) items.push({lvl:'ok', msg:`No treatment appointments scheduled for this doctor on ${date}.`});
+
+  // Verdict
+  const hasErr = items.some(i => i.lvl === 'err');
+  const hasWarn = items.some(i => i.lvl === 'warn');
+  let verdict;
+  if (!newSt || !newEt) verdict = {cls:'warn', icon:'ⓘ', text:'Enter new start + end time to evaluate fully'};
+  else if (hasErr) verdict = {cls:'err', icon:'✕', text:'BLOCKED — fix errors before approving'};
+  else if (hasWarn) verdict = {cls:'warn', icon:'⚠', text:'CONDITIONAL — review warnings before approving'};
+  else verdict = {cls:'ok', icon:'✓', text:'APPROVED — no issues detected'};
+
+  const doctorLine = `<strong>${d.doctorName}</strong> · ${d.clincName} · <span class="badge b-${d.priority?.toLowerCase()||'td'}">${d.priority || d.role}</span> · ${d.role}`;
+  const miniKpis = [
+    {v: tdL.patients, l: 'Active patients (CMF)'},
+    {v: tdL.visitsLeft.toFixed(0), l: 'Pending visits total'},
+    {v: apptCount, l: 'Appts on this date'}
+  ];
+  panel.innerHTML = buildLiveImpactHTML('Shift Change Impact', doctorLine, miniKpis, verdict, items);
+  document.getElementById('btn-approve-shift').disabled = !newSt || !newEt || hasErr;
+}
+
+document.getElementById('shift-doctor').onchange = () => { updateShiftCurrent(); computeShiftImpact(); };
+document.getElementById('shift-date').onchange = () => { updateShiftCurrent(); computeShiftImpact(); };
+document.getElementById('shift-new-st').oninput = computeShiftImpact;
+document.getElementById('shift-new-et').oninput = computeShiftImpact;
+document.getElementById('shift-reason').oninput = () => {};
+
+document.getElementById('btn-clear-shift').onclick = () => {
+  document.getElementById('shift-clinic').value = '';
+  populateDoctorDropdown('shift', '');
+  document.getElementById('shift-doctor').value = '';
+  document.getElementById('shift-date').value = state.generated?.dateCols[0] || '';
+  document.getElementById('shift-current').value = '';
+  document.getElementById('shift-new-st').value = '';
+  document.getElementById('shift-new-et').value = '';
+  document.getElementById('shift-reason').value = '';
+  computeShiftImpact();
+};
+
+document.getElementById('btn-approve-shift').onclick = () => {
+  const g = state.generated;
+  const did = parseInt(document.getElementById('shift-doctor').value);
+  const date = document.getElementById('shift-date').value;
+  const newSt = document.getElementById('shift-new-st').value + ':00';
+  const newEt = document.getElementById('shift-new-et').value + ':00';
+  const reason = document.getElementById('shift-reason').value.trim();
+  const d = g.doctors.find(x => x.doctorId === did);
+  g.roster[did][date] = [newSt, newEt];
+  g.deviations.push({doctorId: did, doctorName: d.doctorName, clinic: d.clincName, date, manual: d.manualPattern[date], generated: [newSt, newEt], reason: `MANUAL APPROVAL: shift change. ${reason||''}`, type: 'Applied'});
+  state.approvals.push({type:'shift', doctorId: did, date, newSt, newEt, reason, ts: new Date().toISOString()});
+  alert(`✓ Shift change approved and applied for ${d.doctorName} on ${date}. Re-export to download updated Excel.`);
+  renderRosterSummary();
+  computeShiftImpact();
+};
+
+// ============== LIVE IMPACT — LEAVE ==============
+function computeLeaveImpact() {
+  const g = state.generated;
+  const did = parseInt(document.getElementById('leave-doctor').value);
+  const start = document.getElementById('leave-start').value;
+  const end = document.getElementById('leave-end').value;
+  const ltype = document.getElementById('leave-type').value;
+  const panel = document.getElementById('leave-impact');
+
+  if (!g || !did) {
+    panel.className = 'live-impact empty';
+    panel.innerHTML = '<div class="placeholder">⚡ Select doctor + dates — impact will appear here instantly.</div>';
+    document.getElementById('btn-approve-leave').disabled = true;
+    return;
+  }
+  panel.className = 'live-impact';
+  const d = g.doctors.find(x => x.doctorId === did);
+  const tdL = state.data.cmf.tdLoad[d.doctorName.trim().toLowerCase()] || {patients: 0, visitsLeft: 0};
+
+  // Build date range
+  let dates = [];
+  if (start && end) {
+    const sd = new Date(start), ed = new Date(end);
+    if (sd <= ed) {
+      for (let dt = new Date(sd); dt <= ed; dt.setDate(dt.getDate()+1)) {
+        const s = formatDate(dt); if (g.dateCols.includes(s)) dates.push(s);
+      }
+    }
+  }
+  if (!dates.length) {
+    const items = [
+      {lvl:'info', msg:`Select start + end date to evaluate leave impact for ${d.doctorName}.`}
+    ];
+    const doctorLine = `<strong>${d.doctorName}</strong> · ${d.clincName} · <span class="badge b-${d.priority?.toLowerCase()||'td'}">${d.priority || d.role}</span> · ${d.role}`;
+    const miniKpis = [{v: tdL.patients, l: 'Active patients'}, {v: tdL.visitsLeft.toFixed(0), l: 'Pending visits'}];
+    panel.innerHTML = buildLiveImpactHTML('Leave Impact', doctorLine, miniKpis, null, items);
+    document.getElementById('btn-approve-leave').disabled = true;
+    return;
+  }
+
+  const isCD = ['CD','CD/TD','ED/CD'].includes(d.role);
+  const peak = g.peak[d.clincName] || [];
+  let totalAppts = 0, blockedDays = 0, daysAlreadyOff = 0;
+  let perDay = [];
+
+  dates.forEach(date => {
+    const cur = g.roster[did][date];
+    const treatKey = d.doctorName.trim().toLowerCase() + '||' + date;
+    const apptCount = state.data.appts.treatByProvDate[treatKey] || 0;
+    totalAppts += apptCount;
+    if (!cur) { daysAlreadyOff++; perDay.push({date, status:'off', apptCount, msg:'Already OFF'}); return; }
+
+    // Check clinic leave capacity
+    let curLeaves = 0, curCDLeaves = 0;
+    Object.entries(g.roster).forEach(([rid, sch]) => {
+      const d2 = g.doctors.find(x => x.doctorId === parseInt(rid));
+      if (!d2 || !d2.isClinical || d2.clincName !== d.clincName) return;
+      if (sch[date] === null && d2.manualPattern[date]) {
+        curLeaves++; if (['CD','CD/TD','ED/CD'].includes(d2.role)) curCDLeaves++;
+      }
+    });
+    let blocked = false; const dayReasons = [];
+    if (curLeaves >= 3) { blocked = true; dayReasons.push(`${curLeaves} doctors already on leave (max 3)`); }
+    if (isCD && curCDLeaves >= 1) { blocked = true; dayReasons.push(`${curCDLeaves} CD already on leave (max 1)`); }
+    if (blocked) blockedDays++;
+
+    // Peak impact
+    if (isCD && ['P1','P2'].includes(d.priority) && peak.length) {
+      const droppedPeak = peak.map(([ph])=>ph).filter(h => parseInt(cur[0].split(':')[0]) <= h && h < parseInt(cur[1].split(':')[0]));
+      const others = g.doctors.filter(x => x.isClinical && x.clincName === d.clincName && ['P1','P2'].includes(x.priority) && ['CD','CD/TD','ED/CD'].includes(x.role) && x.doctorId !== did);
+      const covered = droppedPeak.every(h => others.some(o => { const s = g.roster[o.doctorId][date]; return s && parseInt(s[0].split(':')[0]) <= h && h < parseInt(s[1].split(':')[0]); }));
+      if (droppedPeak.length && !covered) dayReasons.push(`peak hour(s) ${droppedPeak.map(h=>String(h).padStart(2,'0')+':00').join(',')} uncovered`);
+    }
+
+    perDay.push({date, status: blocked ? 'blocked' : 'ok', apptCount, reasons: dayReasons});
+  });
+
+  const items = [];
+  items.push({lvl:'info', msg:`<strong>${dates.length} day${dates.length>1?'s':''}</strong> in requested leave (${start} → ${end})`});
+  if (daysAlreadyOff) items.push({lvl:'info', msg:`<strong>${daysAlreadyOff}</strong> day${daysAlreadyOff>1?'s':''} already OFF in current roster`});
+  items.push({lvl:'info', msg:`Leave type: <strong>${ltype}</strong>`});
+
+  if (totalAppts > 0) items.push({lvl:'warn', msg:`<strong>${totalAppts} treatment appointment${totalAppts>1?'s':''}</strong> would need patient reallocation across these days`});
+  else items.push({lvl:'ok', msg:`No treatment appointments scheduled in this date range`});
+
+  if (blockedDays > 0) items.push({lvl:'err', msg:`<strong>${blockedDays} day${blockedDays>1?'s':''} BLOCKED</strong> due to clinic capacity limits (max 3 leaves/day, max 1 CD/clinic)`});
+  else items.push({lvl:'ok', msg:`No capacity violations — clinic can absorb this leave`});
+
+  // Per-day mini table
+  const dayItems = perDay.filter(p => p.status !== 'off').map(p => {
+    if (p.status === 'blocked') return {lvl:'err', msg:`<strong>${p.date}</strong> — BLOCKED: ${p.reasons.join('; ')} ${p.apptCount?`· ${p.apptCount} appts affected`:''}`};
+    if (p.reasons.length) return {lvl:'warn', msg:`<strong>${p.date}</strong> — OK with warnings: ${p.reasons.join('; ')} ${p.apptCount?`· ${p.apptCount} appts affected`:''}`};
+    return {lvl:'ok', msg:`<strong>${p.date}</strong> — OK · ${p.apptCount} appt${p.apptCount!==1?'s':''} affected`};
+  });
+  items.push(...dayItems);
+
+  // Verdict
+  const allBlocked = blockedDays === dates.length - daysAlreadyOff && blockedDays > 0;
+  let verdict;
+  if (allBlocked) verdict = {cls:'err', icon:'✕', text:'REJECTED — all eligible days blocked by capacity'};
+  else if (blockedDays > 0) verdict = {cls:'warn', icon:'⚠', text:`PARTIAL — ${dates.length-blockedDays-daysAlreadyOff} day(s) can be approved, ${blockedDays} blocked`};
+  else verdict = {cls:'ok', icon:'✓', text:`APPROVED — all ${dates.length-daysAlreadyOff} day(s) within capacity`};
+
+  const doctorLine = `<strong>${d.doctorName}</strong> · ${d.clincName} · <span class="badge b-${d.priority?.toLowerCase()||'td'}">${d.priority || d.role}</span> · ${d.role}`;
+  const miniKpis = [
+    {v: dates.length, l: 'Days requested'},
+    {v: blockedDays, l: 'Days blocked'},
+    {v: totalAppts, l: 'Patients affected'},
+    {v: tdL.patients, l: 'Total active IPs'}
+  ];
+  panel.innerHTML = buildLiveImpactHTML('Leave Impact', doctorLine, miniKpis, verdict, items);
+  document.getElementById('btn-approve-leave').disabled = allBlocked || dates.length === 0;
+}
+
+['leave-doctor','leave-start','leave-end','leave-type'].forEach(id => {
+  document.getElementById(id).onchange = computeLeaveImpact;
+  document.getElementById(id).oninput = computeLeaveImpact;
+});
+
+document.getElementById('btn-clear-leave').onclick = () => {
+  document.getElementById('leave-clinic').value = '';
+  populateDoctorDropdown('leave', '');
+  document.getElementById('leave-doctor').value = '';
+  document.getElementById('leave-start').value = state.generated?.dateCols[0] || '';
+  document.getElementById('leave-end').value = state.generated?.dateCols[0] || '';
+  document.getElementById('leave-reason').value = '';
+  computeLeaveImpact();
+};
+
+document.getElementById('btn-approve-leave').onclick = () => {
+  const g = state.generated;
+  const did = parseInt(document.getElementById('leave-doctor').value);
+  const start = document.getElementById('leave-start').value;
+  const end = document.getElementById('leave-end').value;
+  const ltype = document.getElementById('leave-type').value;
+  const reason = document.getElementById('leave-reason').value.trim();
+  const d = g.doctors.find(x => x.doctorId === did);
+  const dates = [];
+  for (let dt = new Date(start); dt <= new Date(end); dt.setDate(dt.getDate()+1)) {
+    const s = formatDate(dt); if (!g.dateCols.includes(s) || !g.roster[did][s]) continue;
+    let curLeaves = 0, curCDLeaves = 0;
+    Object.entries(g.roster).forEach(([rid, sch]) => {
+      const d2 = g.doctors.find(x => x.doctorId === parseInt(rid));
+      if (!d2 || !d2.isClinical || d2.clincName !== d.clincName) return;
+      if (sch[s] === null && d2.manualPattern[s]) { curLeaves++; if (['CD','CD/TD','ED/CD'].includes(d2.role)) curCDLeaves++; }
+    });
+    const isCD = ['CD','CD/TD','ED/CD'].includes(d.role);
+    if (curLeaves < 3 && !(isCD && curCDLeaves >= 1)) {
+      g.roster[did][s] = null;
+      g.deviations.push({doctorId: did, doctorName: d.doctorName, clinic: d.clincName, date: s, manual: d.manualPattern[s], generated: null, reason: `MANUAL APPROVAL: ${ltype} leave. ${reason||''}`, type: 'Applied'});
+      dates.push(s);
+    }
+  }
+  state.approvals.push({type:'leave', doctorId: did, dates, ltype, reason, ts: new Date().toISOString()});
+  alert(`✓ Leave approved on ${dates.length} day(s): ${dates.join(', ')}. Re-export to download updated Excel.`);
+  renderRosterSummary();
+  computeLeaveImpact();
+};
+
+// ============== LIVE IMPACT — PATIENT IMPACT LOOKUP ==============
+function computeImpactLookup() {
+  const g = state.generated;
+  const did = parseInt(document.getElementById('impact-doctor').value);
+  const date = document.getElementById('impact-date').value;
+  const panel = document.getElementById('impact-result');
+
+  if (!g || !did || !date) {
+    panel.className = 'live-impact empty';
+    panel.innerHTML = '<div class="placeholder">⚡ Select doctor + date — patient breakdown will appear here.</div>';
+    return;
+  }
+  panel.className = 'live-impact';
+  const d = g.doctors.find(x => x.doctorId === did);
+  const tdL = state.data.cmf.tdLoad[d.doctorName.trim().toLowerCase()] || {patients: 0, visitsLeft: 0};
+  const treatKey = d.doctorName.trim().toLowerCase() + '||' + date;
+  const apptCount = state.data.appts.treatByProvDate[treatKey] || 0;
+  const myAppts = state.data.appts.apptsByProvDate[treatKey] || [];
+
+  const byType = {};
+  myAppts.forEach(a => { const t = a.service_type || 'Unknown'; byType[t] = (byType[t]||0)+1; });
+
+  const sched = g.roster[did][date];
+  const items = [];
+  items.push({lvl:'info', msg:`Roster shift on <strong>${date}</strong>: ${sched ? sched[0]+' – '+sched[1] : '<strong>OFF</strong>'}`});
+
+  if (apptCount > 0) items.push({lvl:'warn', msg:`<strong>${apptCount} treatment appointment${apptCount>1?'s':''} scheduled</strong> — these need reallocation if doctor goes off.`});
+  else items.push({lvl:'ok', msg:`No treatment appointments scheduled on ${date}.`});
+
+  if (myAppts.length > apptCount) items.push({lvl:'info', msg:`Total scheduled (any type): ${myAppts.length} appointments`});
+
+  Object.entries(byType).forEach(([type, count]) => {
+    items.push({lvl:'info', msg:`<strong>${type}:</strong> ${count} appointment${count>1?'s':''}`});
+  });
+
+  const doctorLine = `<strong>${d.doctorName}</strong> · ${d.clincName} · <span class="badge b-${d.priority?.toLowerCase()||'td'}">${d.priority || d.role}</span> · ${d.role}`;
+  const miniKpis = [
+    {v: tdL.patients, l: 'Active IPs (CMF)'},
+    {v: tdL.visitsLeft.toFixed(0), l: 'Pending visits'},
+    {v: apptCount, l: 'Treatment appts today'},
+    {v: myAppts.length, l: 'All appts today'}
+  ];
+  panel.innerHTML = buildLiveImpactHTML('Patient Impact Lookup', doctorLine, miniKpis, null, items);
+}
+['impact-doctor','impact-date'].forEach(id => {
+  document.getElementById(id).onchange = computeImpactLookup;
+  document.getElementById(id).oninput = computeImpactLookup;
+});
+
+// ============== EXCEL EXPORT ==============
+document.getElementById('btn-export-roster').onclick = () => {
+  const g = state.generated; if (!g) return;
+  const wb = XLSX.utils.book_new();
+  const header1 = ['doctorId','doctorName','clinicId','clincName','clinical?','role','priority'];
+  g.dateCols.forEach(d => { header1.push(d+'_ST'); header1.push(d+'_ET'); });
+  const rows1 = [header1];
+  g.doctors.sort((a,b) => (a.clincName||'').localeCompare(b.clincName||'') || a.doctorName.localeCompare(b.doctorName)).forEach(d => {
+    const r = [d.doctorId, d.doctorName, d.clinicId, d.clincName, d.isClinical?'Yes':'No', d.role, d.priority];
+    g.dateCols.forEach(date => { const sch = g.roster[d.doctorId][date]; r.push(sch?sch[0]:''); r.push(sch?sch[1]:''); });
+    rows1.push(r);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows1), 'Roster');
+
+  const rows2 = [['type','doctorId','doctorName','clinic','role','priority','date','manual','generated','reason']];
+  g.deviations.filter(d => !d.compoff || d.isCDcompoff).forEach(d => {
+    const doc = g.doctors.find(x => x.doctorId === d.doctorId);
+    rows2.push([d.type, d.doctorId, d.doctorName, d.clinic, doc?doc.role:'', doc?doc.priority:'', d.date, d.manual?d.manual[0]+'-'+d.manual[1]:'', d.generated?d.generated[0]+'-'+d.generated[1]:'', d.reason]);
+  });
+  g.proposals.forEach(d => {
+    const doc = g.doctors.find(x => x.doctorId === d.doctorId);
+    rows2.push(['Proposal', d.doctorId, d.doctorName, d.clinic, doc?doc.role:'', doc?doc.priority:'', d.date, d.manual?d.manual[0]+'-'+d.manual[1]:'', d.generated?d.generated[0]+'-'+d.generated[1]:'', d.reason]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows2), 'Deviations');
+
+  const rows3 = [['doctorId','doctorName','clinic','role','priority','date','reason','category']];
+  g.doctors.forEach(d => {
+    if (!d.isClinical || !d.daysWorked) return;
+    g.dateCols.forEach(date => {
+      if (!g.roster[d.doctorId][date]) {
+        const dv = g.deviations.find(x => x.doctorId === d.doctorId && x.date === date);
+        let reason = 'Manual planned leave', cat = 'Manual';
+        if (dv) {
+          reason = dv.reason;
+          if (dv.reason.includes('CD: weekday')) cat = 'Comp-off (CD)';
+          else if (dv.reason.includes('TD/ED')) cat = 'Comp-off (TD/ED)';
+          else if (dv.reason.includes('Sunday-logic off')) cat = 'Sunday rotation';
+          else if (dv.reason.includes('POWAI')) cat = 'Clinic closed';
+          else cat = 'Rule-driven';
+        } else if (new Date(date).getDay() === 0) { reason = 'Sunday off (rotation)'; cat = 'Sunday rotation'; }
+        rows3.push([d.doctorId, d.doctorName, d.clincName, d.role, d.priority, date, reason, cat]);
+      }
+    });
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows3), 'Leave & Off-Days');
+
+  const rows4 = [['Timestamp','Type','Doctor','Date(s)','Details','Reason']];
+  state.approvals.forEach(a => {
+    const doc = g.doctors.find(x => x.doctorId === a.doctorId);
+    if (a.type === 'shift') rows4.push([a.ts, 'Shift Change', doc.doctorName, a.date, `${a.newSt}–${a.newEt}`, a.reason||'']);
+    else rows4.push([a.ts, `Leave (${a.ltype})`, doc.doctorName, a.dates.join(', '), '', a.reason||'']);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows4), 'Approvals Log');
+
+  const rows5 = [['Clinic','Peak 1','Peak 2','Peak 3']];
+  Object.entries(g.peak).sort().forEach(([cl, hours]) => rows5.push([cl, ...hours.map(([h,c]) => `${String(h).padStart(2,'0')}:00 (${c})`)]));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows5), 'Peak Hours');
+
+  const safeMonth = (g.month||'').replace(/[^A-Za-z0-9_-]/g, '_');
+  XLSX.writeFile(wb, `QI_Spine_${safeMonth}_Roster_${new Date().toISOString().slice(0,10)}.xlsx`);
+};
+
+updateUploadProgress();
+</script>
+</body>
+</html>
